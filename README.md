@@ -6,6 +6,7 @@ Group Members:
 - Nur Awadah Binti Muhammad Nor (1211104241)
 - Miza Farzana Qistina Binti Russikin (1211104229)
 
+Project Description:
 A smart room system where users can use a mobile app to control devices found in a room ie, lights, fans and curtains.
 
 Microcontroller used:
