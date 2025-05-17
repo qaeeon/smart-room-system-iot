@@ -7,7 +7,7 @@ Group Members:
 - Miza Farzana Qistina Binti Russikin (1211104229)
 
 Project Description:
-A smart room system where users can use a mobile app to control devices found in a room ie, lights, fans and curtains.
+A smart room system where users can use a mobile app to control devices found in a room ie, lights, fans and windows.
 
 Microcontroller used:
 - ESP32
@@ -15,7 +15,7 @@ Microcontroller used:
 Actuators used:
 1. Lights
 2. Fans
-3. Curtains
+3. Windows
 
 Sensors used:
 1. Light (LDR) sensor
