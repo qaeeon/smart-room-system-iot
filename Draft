@@ -1,0 +1,71 @@
+#include <DHT.h>
+#include <Servo.h>
+
+// Pin Definitions
+#define LED_PIN        2
+#define LDR_PIN        34
+#define DHT_PIN        4
+#define FAN_PIN        14
+#define SERVO_PIN      15
+#define RAIN_SENSOR_PIN 35
+
+// Thresholds
+#define LIGHT_THRESHOLD 800    // Adjust depending on ambient light
+#define TEMP_THRESHOLD  28.0   // Celsius
+#define RAIN_THRESHOLD  500    // Lower = more water
+
+// Initialize Components
+DHT dht(DHT_PIN, DHT22);  // or DHT11
+Servo windowServo;
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(FAN_PIN, OUTPUT);
+  pinMode(LDR_PIN, INPUT);
+  pinMode(RAIN_SENSOR_PIN, INPUT);
+
+  dht.begin();
+  windowServo.attach(SERVO_PIN);
+  windowServo.write(0);  // Start with window closed
+}
+
+void loop() {
+  // ----- ROOM LIGHT CONTROL -----
+  int ldrValue = analogRead(LDR_PIN);
+  Serial.print("LDR Value: ");
+  Serial.println(ldrValue);
+
+  if (ldrValue < LIGHT_THRESHOLD) {
+    digitalWrite(LED_PIN, HIGH); // Turn on lights
+  } else {
+    digitalWrite(LED_PIN, LOW);  // Turn off lights
+  }
+
+  // ----- FAN CONTROL -----
+  float temp = dht.readTemperature();
+  Serial.print("Temperature: ");
+  Serial.println(temp);
+
+  if (!isnan(temp)) {
+    if (temp > TEMP_THRESHOLD) {
+      digitalWrite(FAN_PIN, HIGH); // Fan ON
+    } else {
+      digitalWrite(FAN_PIN, LOW);  // Fan OFF
+    }
+  }
+
+  // ----- WINDOW CONTROL -----
+  int rainValue = analogRead(RAIN_SENSOR_PIN);
+  Serial.print("Rain Sensor Value: ");
+  Serial.println(rainValue);
+
+  if (rainValue < RAIN_THRESHOLD) {
+    windowServo.write(0);   // Close window
+  } else {
+    windowServo.write(90);  // Open window
+  }
+
+  delay(2000);  // Wait before next cycle
+}
