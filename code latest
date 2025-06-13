@@ -1,0 +1,120 @@
+#define BLYNK_TEMPLATE_ID "TMPL66nsbFmx9"
+#define BLYNK_TEMPLATE_NAME "Smart Room System"
+#define BLYNK_AUTH_TOKEN "hjDipRNBnpcKiLoE5wt9Zk_w-5L1BIry"
+
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
+#include <DHT.h>
+#include <Servo.h>
+
+// Wi-Fi Credentials
+char ssid[] = "purr";
+char pass[] = "gullibleass";
+
+// --- Pin Assignments ---
+#define DHT_PIN         4
+#define DHT_TYPE        DHT22
+#define LDR_PIN         34
+#define RAIN_SENSOR_PIN 35
+
+#define LED_PIN         15
+#define FAN_PIN         18
+#define SERVO_PIN       13
+
+// --- Thresholds ---
+#define TEMP_THRESHOLD  28.0
+#define LDR_THRESHOLD   800
+#define RAIN_THRESHOLD  500
+
+// --- Global Variables ---
+DHT dht(DHT_PIN, DHT_TYPE);
+Servo windowServo;
+
+bool manualFan = false;
+bool manualWindow = false;
+int lightSlider = 100;  // default max brightness
+
+BlynkTimer timer;
+
+// --- Manual Control Widgets ---
+BLYNK_WRITE(V0) {
+  manualFan = param.asInt();
+}
+
+BLYNK_WRITE(V1) {
+  manualWindow = param.asInt();
+}
+
+BLYNK_WRITE(V2) {
+  lightSlider = param.asInt();
+}
+
+// --- Main Logic ---
+void smartRoomControl() {
+  float temperature = dht.readTemperature();
+  int ldrValue = analogRead(LDR_PIN);
+  int rainValue = analogRead(RAIN_SENSOR_PIN);
+
+  // --- FAN CONTROL ---
+  if (manualFan) {
+    digitalWrite(FAN_PIN, HIGH);
+    Blynk.virtualWrite(V0, 1);
+  } else {
+    if (!isnan(temperature) && temperature > TEMP_THRESHOLD) {
+      digitalWrite(FAN_PIN, HIGH);
+      Blynk.virtualWrite(V0, 1);
+    } else {
+      digitalWrite(FAN_PIN, LOW);
+      Blynk.virtualWrite(V0, 0);
+    }
+  }
+
+  // --- WINDOW CONTROL ---
+  if (manualWindow) {
+    windowServo.write(90);  // open
+    Blynk.virtualWrite(V1, 1);
+  } else {
+    if (rainValue < RAIN_THRESHOLD) {
+      windowServo.write(0);  // close
+      Blynk.virtualWrite(V1, 0);
+    } else {
+      windowServo.write(90);  // open
+      Blynk.virtualWrite(V1, 1);
+    }
+  }
+
+  // --- LIGHT CONTROL ---
+  if (ldrValue < LDR_THRESHOLD) {
+    // Adjust brightness based on slider
+    int pwmValue = map(lightSlider, 0, 100, 0, 255);
+    analogWrite(LED_PIN, pwmValue);
+  } else {
+    analogWrite(LED_PIN, 0);  // turn off
+  }
+
+  // Debugging
+  Serial.print("Temp: "); Serial.print(temperature);
+  Serial.print(" | LDR: "); Serial.print(ldrValue);
+  Serial.print(" | Rain: "); Serial.println(rainValue);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(FAN_PIN, OUTPUT);
+
+  dht.begin();
+  windowServo.attach(SERVO_PIN);
+  windowServo.write(90);  // Start open
+
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+
+  // Run smartRoomControl every 2 seconds
+  timer.setInterval(2000L, smartRoomControl);
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+}
