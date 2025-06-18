@@ -1,11 +1,11 @@
-#define BLYNK_TEMPLATE_ID "TMPL66nsbFmx9"
-#define BLYNK_TEMPLATE_NAME "Smart Room System"
-#define BLYNK_AUTH_TOKEN "hjDipRNBnpcKiLoE5wt9Zk_w-5L1BIry"
+#define BLYNK_TEMPLATE_ID "TMPL6MvtMfOU3"
+#define BLYNK_TEMPLATE_NAME "Smart Room"
+#define BLYNK_AUTH_TOKEN "IDbxDI33CkEQblDGBqWpDkfTCSE7eSNn"
 
 #include <WiFi.h>
 #include <BlynkSimpleEsp32.h>
 #include <DHT.h>
-#include <Servo.h>
+#include <ESP32Servo.h>
 
 // Wi-Fi Credentials
 char ssid[] = "purr";
@@ -22,9 +22,9 @@ char pass[] = "gullibleass";
 #define SERVO_PIN       13
 
 // --- Thresholds ---
-#define TEMP_THRESHOLD  28.0
-#define LDR_THRESHOLD   800
-#define RAIN_THRESHOLD  500
+#define TEMP_THRESHOLD  26.0
+#define LDR_THRESHOLD   1000
+#define RAIN_THRESHOLD  3000
 
 // --- Global Variables ---
 DHT dht(DHT_PIN, DHT_TYPE);
@@ -32,7 +32,7 @@ Servo windowServo;
 
 bool manualFan = false;
 bool manualWindow = false;
-int lightSlider = 100;  // default max brightness
+bool manualLight = false;
 
 BlynkTimer timer;
 
@@ -46,7 +46,7 @@ BLYNK_WRITE(V1) {
 }
 
 BLYNK_WRITE(V2) {
-  lightSlider = param.asInt();
+  manualLight = param.asInt();
 }
 
 // --- Main Logic ---
@@ -84,18 +84,35 @@ void smartRoomControl() {
   }
 
   // --- LIGHT CONTROL ---
-  if (ldrValue < LDR_THRESHOLD) {
-    // Adjust brightness based on slider
-    int pwmValue = map(lightSlider, 0, 100, 0, 255);
-    analogWrite(LED_PIN, pwmValue);
+  if (manualLight) {
+    digitalWrite(LED_PIN, HIGH);
+    Blynk.virtualWrite(V2, 1);
   } else {
-    analogWrite(LED_PIN, 0);  // turn off
+    if (ldrValue > LDR_THRESHOLD) {
+      digitalWrite(LED_PIN, HIGH);
+      Blynk.virtualWrite(V2, 1);
+    } else {
+      digitalWrite(LED_PIN, LOW);
+      Blynk.virtualWrite(V2, 0);
+    }
   }
+
+  // --- Send Temperature to V3 (formatted as string) ---
+  if (!isnan(temperature)) {
+    char tempStr[10];
+    dtostrf(temperature, 4, 1, tempStr);  // Format with 1 decimal
+    Blynk.virtualWrite(V3, tempStr);
+  }
+
+  // --- Send Rain Status to V4 (string "Yes"/"No") ---
+  String rainStatus = (rainValue < RAIN_THRESHOLD) ? "Yes" : "No";
+  Blynk.virtualWrite(V4, rainStatus);
 
   // Debugging
   Serial.print("Temp: "); Serial.print(temperature);
   Serial.print(" | LDR: "); Serial.print(ldrValue);
-  Serial.print(" | Rain: "); Serial.println(rainValue);
+  Serial.print(" | Rain: "); Serial.print(rainValue);
+  Serial.print(" | Rain? "); Serial.println(rainStatus);
 }
 
 void setup() {
@@ -110,11 +127,11 @@ void setup() {
 
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
 
-  // Run smartRoomControl every 2 seconds
-  timer.setInterval(2000L, smartRoomControl);
+  timer.setInterval(2000L, smartRoomControl);  // every 2 seconds
 }
 
 void loop() {
   Blynk.run();
   timer.run();
 }
+
